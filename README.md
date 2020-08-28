@@ -3,6 +3,7 @@
 "Spy" satellite tracker
 
 (C) David Pello for Tabakalera Medialab
+
 Using pysattracker library: https://github.com/cubehub/pysattracker
 
 This program is free software under the GNU GPL License:

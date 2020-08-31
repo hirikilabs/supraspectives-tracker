@@ -29,6 +29,7 @@ ROTCTLD_ADDR = 'localhost'
 TRACKER_PORT = 7777
 GQRX_PORT = 7356
 GQRX_ADDR1 = "172.16.30.82"
+DEFAULT_FREQ = 255500000
 
 # classes
 class QRotor:
@@ -119,6 +120,10 @@ class QTrackerRequest(socketserver.BaseRequestHandler):
                 break
             # look for satellite
             sat_name = data_received.decode("utf-8")
+            # quit?
+            if sat_name.strip() == "EXIT":
+                sys.exit("EXIT COMMAND")
+            # find sat name in list and send to tracker if found
             for sat in sat_data:
                 if sat_name.strip() in sat["name"]:
                     sat_q.put(sat["name"])
@@ -164,15 +169,16 @@ class QTracker(threading.Thread):
                                     # radio control?
                                     if not "FrequencyPlaceholder" in sat["freqs"].strip() :
                                         # get first frequency
-                                        freq = sat["freqs"].strip().split(";")[0].split(" ")[0]
+                                        self.freq = sat["freqs"].strip().split(";")[0].split(" ")[0]
                                         # convert to Hz
-                                        freq = float(freq) * 1000000
-                                        # calculate doppler shift
-                                        freq = freq + self.tracker.doppler(freq)
-                                        self.gqrx1.set_freq(freq)
-                                        print(self.tracker.satellite.name, self.az, self.ele, freq)
+                                        self.freq = float(self.freq) * 1000000
                                     else:
-                                        print(self.tracker.satellite.name, self.az, self.ele)
+                                        # use default frequency (SATCOM?)
+                                        self.freq = DEFAULT_FREQ
+                                    # calculate doppler shift
+                                    self.freq = self.freq + self.tracker.doppler(self.freq)
+                                    self.gqrx1.set_freq(self.freq)
+                                    print(self.tracker.satellite.name, self.az, self.ele, freq)
                                 time.sleep(0.5)
                             else:
                                 self.tracking = False

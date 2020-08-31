@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+#
 # "Spy" satellite tracker
 # (C) David Pello for Tabakalera Medialab
 # Using pysattracker library: https://github.com/cubehub/pysattracker
@@ -26,7 +28,7 @@ ROTCTLD_PORT = 4533
 ROTCTLD_ADDR = 'localhost'
 TRACKER_PORT = 7777
 GQRX_PORT = 7356
-GQRX_ADDR1 = "172.16.30.211"
+GQRX_ADDR1 = "172.16.30.82"
 
 # classes
 class QRotor:

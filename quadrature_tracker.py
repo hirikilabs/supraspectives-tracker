@@ -178,7 +178,7 @@ class QTracker(threading.Thread):
                                     # calculate doppler shift
                                     self.freq = self.freq + self.tracker.doppler(self.freq)
                                     self.gqrx1.set_freq(self.freq)
-                                    print(self.tracker.satellite.name, self.az, self.ele, freq)
+                                    print(self.tracker.satellite.name, self.az, self.ele, self.freq)
                                 time.sleep(0.5)
                             else:
                                 self.tracking = False

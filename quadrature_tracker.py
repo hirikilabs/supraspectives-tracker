@@ -18,6 +18,7 @@ import sys
 import time
 import socketserver
 import threading, queue
+import atexit
 
 import sattracker
 from satdata import sat_data
@@ -85,7 +86,7 @@ class QGqrx:
             if len(data) == 0:
                 sys.exit("No data received from gqrx")
         except:
-            sys.exit("Problem communicating with gqrx", sys.exc_info()[0])
+            sys.exit("Problem communicating with gqrx: " + str(sys.exc_info()[0]))
         # we received something, gqrx must be running
     def set_freq(self, freq):
         try:
@@ -114,6 +115,7 @@ class QTrackerRequest(socketserver.BaseRequestHandler):
             sat_name = data_received.decode("utf-8")
             # quit?
             if sat_name.strip() == "EXIT":
+                sat_q.put("EXIT")
                 sys.exit("EXIT COMMAND")
             # find sat name in list and send to tracker if found
             for sat in sat_data:
@@ -140,7 +142,9 @@ class QTracker(threading.Thread):
             # get sat name to track
             try:
                 self.sat_name = self.sat_q.get(True, 0.5)
-                print("TRY: ", self.sat_name, file=sys.stderr)
+                print("REQUESTED: ", self.sat_name, file=sys.stderr)
+                if self.sat_name == "EXIT":
+                    self.stoprequest.set()
             except queue.Empty:
                 # see if we need to track
                 if self.sat_name != "":
@@ -160,10 +164,14 @@ class QTracker(threading.Thread):
                                     self.last_ele = self.ele
                                     # radio control?
                                     if not "FrequencyPlaceholder" in sat["freqs"].strip() :
-                                        # get first frequency
-                                        self.freq = sat["freqs"].strip().split(";")[0].split(" ")[0]
-                                        # convert to Hz
-                                        self.freq = float(self.freq) * 1000000
+                                        try: 
+                                            # get first frequency
+                                            self.freq = sat["freqs"].strip().split(";")[0].split(" ")[0]
+                                            # convert to Hz
+                                            self.freq = float(self.freq) * 1000000
+                                        except:
+                                            # problem, resort to default freq
+                                            self.freq = config["default_freq"]
                                     else:
                                         # use default frequency (SATCOM?)
                                         self.freq = config["default_freq"]
@@ -190,7 +198,10 @@ if __name__ == "__main__":
 
         tracker_server = socketserver.TCPServer(('', config["tracker_port"]), QTrackerRequest)
         tracker_server.serve_forever()
-    finally:
+    except:
         if tracker_server:
             tracker_server.shutdown()
-
+        if tracker_thread:
+            sat_q.put("EXIT")
+            tracker_thread.join()
+        sys.exit("Exiting main threads: " + str(sys.exc_info()[0]))

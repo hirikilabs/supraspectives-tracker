@@ -21,22 +21,23 @@ import threading, queue
 
 import sattracker
 from satdata import sat_data
+from trackerconfig import config
 
 # constants
-TBK = ("43.316301", "-1.975862", "20")
-ROTCTLD_PORT = 4533
-ROTCTLD_ADDR = 'localhost'
-TRACKER_PORT = 7777
-GQRX_PORT = 7356
-GQRX_ADDR1 = "172.16.30.82"
-DEFAULT_FREQ = 255500000
+#TBK = ("43.316301", "-1.975862", "20")
+#ROTCTLD_PORT = 4533
+#ROTCTLD_ADDR = 'localhost'
+#TRACKER_PORT = 7777
+#GQRX_PORT = 7356
+#GQRX_ADDR1 = "172.16.30.82"
+#DEFAULT_FREQ = 255500000
 
 # classes
 class QRotor:
     def __init__(self):
         # connect to rotctld
         self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server_address = (ROTCTLD_ADDR, ROTCTLD_PORT)
+        self.server_address = (config["rotctld_addr"], config["rotctld_port"])
         try:
             self.conn.connect(self.server_address)
         except:
@@ -81,7 +82,7 @@ class QGqrx:
     def __init__(self):
         # connect to gqrx
         self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server_address = (GQRX_ADDR1, GQRX_PORT)
+        self.server_address = (config["gqrx_addr1"], config["gqrx_port"])
         try:
             self.conn.connect(self.server_address)
         except:
@@ -154,7 +155,7 @@ class QTracker(threading.Thread):
                 if self.sat_name != "":
                     for sat in sat_data:
                         if self.sat_name.strip() in sat["name"]:
-                            self.tracker = sattracker.Tracker(satellite=sat, groundstation=TBK)
+                            self.tracker = sattracker.Tracker(satellite=sat, groundstation=config["location"])
                             self.tracker.set_epoch(time.time())
                             if self.tracker.elevation() > 0.0:
                                 self.tracking = True
@@ -174,7 +175,7 @@ class QTracker(threading.Thread):
                                         self.freq = float(self.freq) * 1000000
                                     else:
                                         # use default frequency (SATCOM?)
-                                        self.freq = DEFAULT_FREQ
+                                        self.freq = config["default_freq"]
                                     # calculate doppler shift
                                     self.freq = self.freq + self.tracker.doppler(self.freq)
                                     self.gqrx1.set_freq(self.freq)
@@ -196,7 +197,7 @@ if __name__ == "__main__":
         tracker_thread = QTracker(sat_q=sat_q, result_q=result_q)
         tracker_thread.start()
 
-        tracker_server = socketserver.TCPServer(('', TRACKER_PORT), QTrackerRequest)
+        tracker_server = socketserver.TCPServer(('', config["tracker_port"]), QTrackerRequest)
         tracker_server.serve_forever()
     finally:
         if tracker_server:

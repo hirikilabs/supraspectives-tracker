@@ -149,7 +149,7 @@ class QTracker(threading.Thread):
             # get sat name to track
             try:
                 self.sat_name = self.sat_q.get(True, 0.5)
-                print("TRY: ", self.sat_name)
+                print("TRY: ", self.sat_name, file=sys.stderr)
             except queue.Empty:
                 # see if we need to track
                 if self.sat_name != "":
@@ -179,7 +179,7 @@ class QTracker(threading.Thread):
                                     # calculate doppler shift
                                     self.freq = self.freq + self.tracker.doppler(self.freq)
                                     self.gqrx1.set_freq(self.freq)
-                                    print(self.tracker.satellite.name, self.az, self.ele, self.freq)
+                                    print(self.tracker.satellite.name, self.az, self.ele, self.freq, file=sys.stderr)
                                 time.sleep(0.5)
                             else:
                                 self.tracking = False

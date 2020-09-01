@@ -23,15 +23,6 @@ import sattracker
 from satdata import sat_data
 from trackerconfig import config
 
-# constants
-#TBK = ("43.316301", "-1.975862", "20")
-#ROTCTLD_PORT = 4533
-#ROTCTLD_ADDR = 'localhost'
-#TRACKER_PORT = 7777
-#GQRX_PORT = 7356
-#GQRX_ADDR1 = "172.16.30.82"
-#DEFAULT_FREQ = 255500000
-
 # classes
 class QRotor:
     def __init__(self):

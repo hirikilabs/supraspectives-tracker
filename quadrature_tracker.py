@@ -43,6 +43,7 @@ class QRotor:
         except:
             sys.exit("Problem communicating with rotctld", sys.exc_info()[0])
         # we received something, rotctld must be running
+        print("Connected to rotctld", file=sys.stderr)
     def get_pos(self):
         try:
             self.conn.sendall(b'p\n')
@@ -88,6 +89,7 @@ class QGqrx:
         except:
             sys.exit("Problem communicating with gqrx: " + str(sys.exc_info()[0]))
         # we received something, gqrx must be running
+        print("Connected to gqrx", file=sys.stderr)
     def set_freq(self, freq):
         try:
             self.conn.sendall(b'F ' + bytes(str(freq), "utf-8") + b'\n')
@@ -197,11 +199,13 @@ if __name__ == "__main__":
         tracker_thread.start()
 
         tracker_server = socketserver.TCPServer(('', config["tracker_port"]), QTrackerRequest)
+        print("Created TCP server on port " + str(config["tracker_port"]), file=sys.stderr)
         tracker_server.serve_forever()
     except:
         if tracker_server:
             tracker_server.shutdown()
+            tracker_server.server_close()
         if tracker_thread:
             sat_q.put("EXIT")
             tracker_thread.join()
-        sys.exit("Exiting main threads: " + str(sys.exc_info()[0]))
+        sys.exit("Exiting main threads: " + str(sys.exc_info()[0]) + " " + str(sys.exc_info()[1]))

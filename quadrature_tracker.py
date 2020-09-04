@@ -44,6 +44,7 @@ class QRotor:
             sys.exit("Problem communicating with rotctld", sys.exc_info()[0])
         # we received something, rotctld must be running
         print("Connected to rotctld", file=sys.stderr)
+    
     def get_pos(self):
         try:
             self.conn.sendall(b'p\n')
@@ -56,6 +57,17 @@ class QRotor:
                 sys.exit("Problem reading position")
         except:
             sys.exit("Problem reading position from rotctld", sys.exc_info()[0])
+
+    def get_abs_pos(self):
+        pos = self.get_pos()
+        az = float(pos[0])
+        el = float(pos[1])
+        if az < 0:
+            az = az + 360
+        if az > 359:
+            az = az - 360
+        return (az, el)
+
     def set_pos(self, az, el):
         try:
             self.conn.sendall(b'P ' + bytes(str(az), "utf-8") + b' ' + bytes(str(el), "utf-8") + b'\n')
@@ -70,6 +82,17 @@ class QRotor:
                 sys.exit("No response from rotctld when setting position")
         except:
             sys.exit("Problem setting position to rotctld")
+
+class QRenderer:
+    def __init__(self):
+        self.conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.server_address = (config["renderer_addr"] , config["renderer_port"])
+    def on_pos(self):
+        try:
+            self.conn.sendto(b"ON POS", self.server_address)
+        finally:
+            pass
+
 
 class QGqrx:
     def __init__(self):
@@ -90,6 +113,7 @@ class QGqrx:
             sys.exit("Problem communicating with gqrx: " + str(sys.exc_info()[0]))
         # we received something, gqrx must be running
         print("Connected to gqrx", file=sys.stderr)
+
     def set_freq(self, freq):
         try:
             self.conn.sendall(b'F ' + bytes(str(freq), "utf-8") + b'\n')
@@ -105,7 +129,6 @@ class QGqrx:
         except:
             sys.exit("Problem sending frequency to gqrx")
 
-
 # request handler class
 class QTrackerRequest(socketserver.BaseRequestHandler):
     def handle(self):
@@ -120,9 +143,14 @@ class QTrackerRequest(socketserver.BaseRequestHandler):
                 sat_q.put("EXIT")
                 sys.exit("EXIT COMMAND")
             # find sat name in list and send to tracker if found
-            for sat in sat_data:
-                if sat_name.strip() in sat["name"]:
-                    sat_q.put(sat["name"])
+            # empty? 
+            if sat_name.strip():
+                for sat in sat_data:
+                    if sat_name.strip() in sat["name"]:
+                        sat_q.put(sat["name"])
+
+    def send_data(data):
+        self.request.sendall(data)
 
 
 class QTracker(threading.Thread):
@@ -139,6 +167,27 @@ class QTracker(threading.Thread):
         self.ele = 0
         self.last_az = self.az
         self.last_ele = self.ele
+        self.last_name = ""
+        print ("Resetting rotor...", file=sys.stderr)
+        self.rotor.set_pos(0.0, 0.0)
+        while self.rotor.get_abs_pos()[0] != 0.0 or self.rotor.get_abs_pos()[1] != 0.0:
+            print(float(self.rotor.get_pos()[0]), float(self.rotor.get_pos()[1]), file=sys.stderr)
+            time.sleep(1)
+        print ("Rotor at 0, 0")
+        self.renderer = QRenderer()
+
+    def update_pos(self):
+        self.rotor.set_pos(self.az, self.ele)
+        self.last_az = self.az
+        self.last_ele = self.ele
+
+    def reached_pos(self):
+        if self.az == self.rotor.get_abs_pos()[0] and self.ele == self.rotor.get_abs_pos()[1]:
+            if self.sat_name.strip() != self.last_name:
+                self.last_name = self.sat_name.strip()
+                print("ON POS", file=sys.stderr)
+                self.renderer.on_pos()
+
     def run(self):
         while not self.stoprequest.isSet():
             # get sat name to track
@@ -149,7 +198,7 @@ class QTracker(threading.Thread):
                     self.stoprequest.set()
             except queue.Empty:
                 # see if we need to track
-                if self.sat_name != "":
+                if self.sat_name.strip() != "":
                     for sat in sat_data:
                         if self.sat_name.strip() in sat["name"]:
                             self.tracker = sattracker.Tracker(satellite=sat, groundstation=config["location"])
@@ -161,9 +210,10 @@ class QTracker(threading.Thread):
                                 self.az = round(self.tracker.azimuth()*2)/2
                                 # need to update?
                                 if self.ele != self.last_ele or self.az != self.last_az:
-                                    self.rotor.set_pos(self.az, self.ele)
-                                    self.last_az = self.az
-                                    self.last_ele = self.ele
+                                    self.update_pos()
+                                    # are we already on postion?
+                                    self.reached_pos()
+
                                     # radio control?
                                     if not "FrequencyPlaceholder" in sat["freqs"].strip() :
                                         try: 
@@ -184,7 +234,6 @@ class QTracker(threading.Thread):
                                 time.sleep(0.5)
                             else:
                                 self.tracking = False
-
 
 
 # variables

@@ -6,5 +6,7 @@ config = {
         "gqrx_port" : 7356,
         "gqrx_addr1" : "172.16.30.82",
         "default_freq" : 255500000,
+        "renderer_addr": "172.16.30.47",
+        "renderer_port": 7778
 }
 

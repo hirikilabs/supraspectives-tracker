@@ -168,13 +168,18 @@ class QTracker(threading.Thread):
         self.last_az = self.az
         self.last_ele = self.ele
         self.last_name = ""
+        if config["reset_rotor"]:
+            self.reset_rotor()
+        self.renderer = QRenderer()
+
+    def reset_rotor(self):
         print ("Resetting rotor...", file=sys.stderr)
         self.rotor.set_pos(0.0, 0.0)
         while self.rotor.get_abs_pos()[0] != 0.0 or self.rotor.get_abs_pos()[1] != 0.0:
             print(float(self.rotor.get_pos()[0]), float(self.rotor.get_pos()[1]), file=sys.stderr)
             time.sleep(1)
         print ("Rotor at 0, 0")
-        self.renderer = QRenderer()
+
 
     def update_pos(self):
         self.rotor.set_pos(self.az, self.ele)
@@ -202,7 +207,10 @@ class QTracker(threading.Thread):
                     for sat in sat_data:
                         if self.sat_name.strip() in sat["name"]:
                             self.tracker = sattracker.Tracker(satellite=sat, groundstation=config["location"])
-                            self.tracker.set_epoch(time.time())
+                            try:
+                                self.tracker.set_epoch(time.time())
+                            except:
+                                pass
                             if self.tracker.elevation() > 0.0:
                                 self.tracking = True
                                 # round values to x.0 - x.5
